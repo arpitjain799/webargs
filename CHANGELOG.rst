@@ -4,9 +4,23 @@ Changelog
 8.3.0 (unreleased)
 ******************
 
+Features:
+
+* Add a new argument, ``empty`` to ``DelimitedList`` and ``DelimitedTuple``,
+  with a default of ``""``. This controls the value deserialized when an empty
+  string is seen.
+
+``empty`` can be used to handle types other than strings more gracefully, e.g.
+
+.. code-block:: python
+
+    from webargs import fields
+
+    myfield = fields.DelimitedList(fields.Int(), empty=0)
+
 Other changes:
 
-- Test against Python 3.11 (:pr:`787`).
+* Test against Python 3.11 (:pr:`787`).
 
 8.2.0 (2022-07-11)
 ******************

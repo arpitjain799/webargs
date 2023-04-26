@@ -15,6 +15,8 @@ tells webargs where to parse the request argument from.
 """
 from __future__ import annotations
 
+import typing
+
 import marshmallow as ma
 
 # Expose all fields from marshmallow.fields.
@@ -64,6 +66,9 @@ class DelimitedFieldMixin:
     delimiter: str = ","
     # delimited fields set is_multiple=False for webargs.core.is_multiple
     is_multiple: bool = False
+    # the empty value is an instance var and will always be set on subclasses
+    # it has no class-level default
+    empty: typing.Any
 
     def _serialize(self, value, attr, obj, **kwargs):
         # serializing will start with parent-class serialization, so that we correctly
@@ -77,6 +82,8 @@ class DelimitedFieldMixin:
         if not isinstance(value, (str, bytes)):
             raise self.make_error("invalid")
         values = value.split(self.delimiter) if value else []
+        # convert empty strings to the empty value; typically "" and therefore a no-op
+        values = [v or self.empty for v in values]
         return super()._deserialize(values, attr, data, **kwargs)
 
 
@@ -89,6 +96,8 @@ class DelimitedList(DelimitedFieldMixin, ma.fields.List):
 
     :param Field cls_or_instance: A field class or instance.
     :param str delimiter: Delimiter between values.
+    :param Any empty: The value to use for empty list elements. Defaults to the empty
+        string.
     """
 
     default_error_messages = {"invalid": "Not a valid delimited list."}
@@ -98,9 +107,11 @@ class DelimitedList(DelimitedFieldMixin, ma.fields.List):
         cls_or_instance: ma.fields.Field | type,
         *,
         delimiter: str | None = None,
+        empty: typing.Any = "",
         **kwargs,
     ):
         self.delimiter = delimiter or self.delimiter
+        self.empty = empty
         super().__init__(cls_or_instance, **kwargs)
 
 
@@ -113,10 +124,20 @@ class DelimitedTuple(DelimitedFieldMixin, ma.fields.Tuple):
 
     :param Iterable[Field] tuple_fields: An iterable of field classes or instances.
     :param str delimiter: Delimiter between values.
+    :param Any empty: The value to use for empty list elements. Defaults to the empty
+        string.
     """
 
     default_error_messages = {"invalid": "Not a valid delimited tuple."}
 
-    def __init__(self, tuple_fields, *, delimiter: str | None = None, **kwargs):
+    def __init__(
+        self,
+        tuple_fields,
+        *,
+        delimiter: str | None = None,
+        empty: typing.Any = "",
+        **kwargs,
+    ):
         self.delimiter = delimiter or self.delimiter
+        self.empty = empty
         super().__init__(tuple_fields, **kwargs)

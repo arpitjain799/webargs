@@ -4,26 +4,21 @@ import typing
 from unittest import mock
 
 import pytest
+from bottle import MultiDict as BotMultiDict
+from django.utils.datastructures import MultiValueDict as DjMultiDict
 from marshmallow import (
+    EXCLUDE,
+    INCLUDE,
+    RAISE,
     Schema,
     post_load,
     pre_load,
     validates_schema,
-    EXCLUDE,
-    INCLUDE,
-    RAISE,
 )
-from werkzeug.datastructures import MultiDict as WerkMultiDict
-from django.utils.datastructures import MultiValueDict as DjMultiDict
-from bottle import MultiDict as BotMultiDict
-
-from webargs import fields, ValidationError
-from webargs.core import (
-    Parser,
-    is_json,
-    get_mimetype,
-)
+from webargs import ValidationError, fields
+from webargs.core import Parser, get_mimetype, is_json
 from webargs.multidictproxy import MultiDictProxy
+from werkzeug.datastructures import MultiDict as WerkMultiDict
 
 
 class MockHTTPError(Exception):
@@ -1102,6 +1097,32 @@ def test_delimited_tuple_passed_invalid_type(web_request, parser):
     with pytest.raises(ValidationError) as excinfo:
         parser.parse(schema, web_request)
     assert excinfo.value.messages == {"json": {"ids": ["Not a valid delimited tuple."]}}
+
+
+def test_delimited_list_custom_empty_value(web_request, parser):
+    web_request.json = {"ids": "1,,3"}
+    schema_cls = Schema.from_dict({"ids": fields.DelimitedList(fields.Int(), empty=0)})
+    schema = schema_cls()
+
+    parsed = parser.parse(schema, web_request)
+    assert parsed["ids"] == [1, 0, 3]
+
+    data = schema.dump(parsed)
+    assert data["ids"] == "1,0,3"
+
+
+def test_delimited_tuple_custom_empty_value(web_request, parser):
+    web_request.json = {"ids": "1,,3"}
+    schema_cls = Schema.from_dict(
+        {"ids": fields.DelimitedTuple((fields.Int, fields.Int, fields.Int), empty=0)}
+    )
+    schema = schema_cls()
+
+    parsed = parser.parse(schema, web_request)
+    assert parsed["ids"] == (1, 0, 3)
+
+    data = schema.dump(parsed)
+    assert data["ids"] == "1,0,3"
 
 
 def test_missing_list_argument_not_in_parsed_result(web_request, parser):
